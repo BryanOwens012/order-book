@@ -3,8 +3,7 @@ Order book
 """
 
 from dataclasses import dataclass
-from typing import Tuple
-from typing import Optional
+from typing import Tuple, Optional
 
 from order import LimitOrder, MarketOrder, Order, OrderDirection
 from price_level import PriceLevel
@@ -65,6 +64,34 @@ class OrderBook:
 
         return self.__repr__()
 
+    def get_active_orders_str(self):
+        """
+        Get active orders as string
+        """
+
+        result = ""
+
+        result += f"Active orders for {self.ticker}: ===========\n\n"
+
+        for direction in OrderDirection:
+            result += f"{direction.name}:\n"
+
+            pq = self.active_orders[direction]
+            copied_pq: CustomPQ[Tuple[Price, PriceLevel]] = CustomPQ()
+
+            while not pq.empty():
+                priority, price_level = pq.get()
+                copied_pq.put((priority, price_level))
+
+                for order in price_level.orders.values():
+                    result += f"Price: {price_level.price}, Order: {order}\n"
+
+            pq = copied_pq
+
+            result += "\n"
+
+        return result
+
     def fill_quantities(self, a: Order, b: Order, price: Price):
         """
         Fill quantities
@@ -109,15 +136,17 @@ class OrderBook:
         direction = order.direction
         active_orders = self.active_orders[direction * -1]
 
+        # Store unmatched price levels to put back
+        unmatched = []
+
         while not active_orders.empty():
             if order.filled_at:
                 break
 
-            pq_priority, matched_price_level = active_orders.get()
+            priority, matched_price_level = active_orders.get()
             matched_price = matched_price_level.price
 
             # Price check for limit orders
-            # If the limit can't be hit (no more matches possible), then put the price level back and break
             if isinstance(order, LimitOrder):
                 if (
                     direction == OrderDirection.BID
@@ -126,14 +155,10 @@ class OrderBook:
                     direction == OrderDirection.ASK
                     and matched_price < order.limit_price
                 ):
-                    active_orders.put(
-                        (
-                            pq_priority,
-                            matched_price_level,
-                        )
-                    )
-                    break
+                    unmatched.append((priority, matched_price_level))
+                    continue
 
+            # Process orders at this price level
             orders_to_remove = []
             for matched_order in matched_price_level.orders.values():
                 if order.filled_at:
@@ -144,15 +169,22 @@ class OrderBook:
                         break
                     self.fill_quantities(matched_order, order, matched_price)
 
-                orders_to_remove.append(matched_order.order_id)
+                if matched_order.filled_at:
+                    orders_to_remove.append(matched_order.order_id)
 
             # Remove filled orders
             for order_id in orders_to_remove:
                 del matched_price_level.orders[order_id]
 
-            # If price level is empty, remove it
-            if not matched_price_level.orders:
+            # If price level still has orders, put it back
+            if matched_price_level.orders:
+                unmatched.append((priority, matched_price_level))
+            else:
                 del self.price_levels[direction * -1][matched_price]
+
+        # Put all unmatched price levels back
+        for priority, price_level in unmatched:
+            active_orders.put((priority, price_level))
 
     def submit_market_order(self, market_order: MarketOrder):
         """

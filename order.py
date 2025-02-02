@@ -15,12 +15,13 @@ class OrderDirection(IntEnum):
     """
     Enum for order direction
 
-    BID = Buy
+
     ASK = Sell
+    BID = Buy
     """
 
-    BID = -1
     ASK = 1
+    BID = -1
 
 
 @dataclass
