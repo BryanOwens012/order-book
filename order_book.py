@@ -87,7 +87,7 @@ class OrderBook:
                 copied_pq.put((priority, price_level))
 
                 for order in price_level.orders.values():
-                    if order.canceled_at is not None:
+                    if order.canceled_at:
                         continue
 
                     result += f"Price: {price_level.price}, Order: {order}\n"
@@ -121,7 +121,7 @@ class OrderBook:
             filled_a = a.fill_fully(price)
             filled_b = b.fill_partially(a.quantity, price)
 
-        if filled_a is None or filled_b is None:
+        if not (filled_a and filled_b):
             self.invalid_orders[a.direction].append(a)
             self.invalid_orders[b.direction].append(b)
 
