@@ -56,6 +56,8 @@ class Order:
         self.filled_at: Timestamp = None
         self.filled_price: Price = None
 
+        self.canceled_at: Timestamp = None
+
         return self
 
     def __repr__(self) -> str:

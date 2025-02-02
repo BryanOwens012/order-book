@@ -4,6 +4,9 @@ Order book
 
 from dataclasses import dataclass
 from typing import Tuple, Optional
+import time
+from copy import deepcopy
+import uuid
 
 from order import LimitOrder, MarketOrder, Order, OrderDirection
 from price_level import PriceLevel
@@ -64,7 +67,7 @@ class OrderBook:
 
         return self.__repr__()
 
-    def get_active_orders_str(self):
+    def get_active_orders_str(self) -> str:
         """
         Get active orders as string
         """
@@ -84,6 +87,9 @@ class OrderBook:
                 copied_pq.put((priority, price_level))
 
                 for order in price_level.orders.values():
+                    if order.canceled_at is not None:
+                        continue
+
                     result += f"Price: {price_level.price}, Order: {order}\n"
 
             pq = copied_pq
@@ -124,7 +130,7 @@ class OrderBook:
         self.executed_orders[filled_a.direction].append(filled_a)
         self.executed_orders[filled_b.direction].append(filled_b)
 
-    def execute_order(self, order: Order):
+    def execute_order(self, order: Order) -> Order:
         """
         Execute an order
         """
@@ -163,6 +169,9 @@ class OrderBook:
             for matched_order in matched_price_level.orders.values():
                 if order.filled_at:
                     break
+                if matched_order.canceled_at:
+                    orders_to_remove.append(matched_order.order_id)
+                    continue
 
                 while not matched_order.filled_at:
                     if order.filled_at:
@@ -186,7 +195,9 @@ class OrderBook:
         for priority, price_level in unmatched:
             active_orders.put((priority, price_level))
 
-    def submit_market_order(self, market_order: MarketOrder):
+        return order
+
+    def submit_market_order(self, market_order: MarketOrder) -> MarketOrder:
         """
         Submit and execute (fill, if possible) a market order
         """
@@ -209,7 +220,9 @@ class OrderBook:
                 "Failed to fill market order: no more bids available",
             )
 
-    def submit_limit_order(self, limit_order: LimitOrder):
+        return market_order
+
+    def submit_limit_order(self, limit_order: LimitOrder) -> LimitOrder:
         """
         Submit a limit order
         """
@@ -234,3 +247,62 @@ class OrderBook:
                 active_orders.put((direction * limit_price, price_level))
 
             price_level.orders[limit_order.order_id] = limit_order
+
+        return limit_order
+
+    def cancel_limit_order(
+        self, direction: OrderDirection, price: float, order_id: str
+    ) -> LimitOrder:
+        """
+        Cancel a limit order
+        """
+
+        if price not in self.price_levels[direction]:
+            raise InvalidOrderException(
+                None, f"No {direction.name} orders at price ${price}"
+            )
+
+        price_level = self.price_levels[direction][price]
+
+        if order_id not in price_level.orders:
+            raise InvalidOrderException(
+                None,
+                f"No {direction.name} orders at price ${price} with order ID {order_id}",
+            )
+
+        limit_order = price_level.orders[order_id]
+        limit_order.canceled_at = time.time()
+        del price_level.orders[order_id]
+
+        if not price_level.orders:
+            del self.price_levels[direction][price]
+
+        return limit_order
+
+    def update_limit_order(
+        self,
+        direction: OrderDirection,
+        price: float,
+        order_id: str,
+        new_quantity: Optional[int],
+        new_price: Optional[float],
+    ) -> LimitOrder:
+        """
+        Update a limit order
+        Basically equivalent to canceling and resubmitting
+        """
+
+        limit_order = self.cancel_limit_order(direction, price, order_id)
+
+        new_limit_order = deepcopy(limit_order)
+        new_limit_order.quantity = (
+            new_quantity if new_quantity else limit_order.quantity
+        )
+        new_limit_order.limit_price = (
+            new_price if new_price else limit_order.limit_price
+        )
+        new_limit_order.canceled_at = None
+        new_limit_order.submitted_at = time.time()
+        new_limit_order.order_id = uuid.uuid4()
+
+        return self.submit_limit_order(new_limit_order)
