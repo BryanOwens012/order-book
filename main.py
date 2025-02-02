@@ -7,11 +7,27 @@ from enum import StrEnum
 import time
 import uuid
 from queue import PriorityQueue
-from typing import Tuple, Optional, Union
+from typing import Tuple, Optional
 from copy import deepcopy
 
 Timestamp = float
 Price = float
+
+
+class CustomPQ(PriorityQueue):
+    """
+    Custom priority queue
+    """
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+    def __repr__(self):
+        queue_values = [elt[1].__repr__() for elt in self.queue]
+        return "{" + f"CustomPQ({', '.join(queue_values)})" + "}"
+
+    def __str__(self):
+        return self.__repr__()
 
 
 class InvalidOrderException(Exception):
@@ -71,6 +87,24 @@ class Order:
 
         return self
 
+    def __repr__(self) -> str:
+        """
+        Representation of the order
+        """
+
+        return (
+            "{"
+            + f"Order(ticker={self.ticker}, direction={self.direction}, quantity={self.quantity}, order_id={self.order_id}, submitted_at={self.submitted_at}, filled_at={self.filled_at}, filled_price={self.filled_price})"
+            + "}"
+        )
+
+    def __str__(self) -> str:
+        """
+        Representation of the order
+        """
+
+        return self.__repr__()
+
     def fill_partially(self, quantity: int, filled_price: Price) -> "Order":
         """
         Split this order into two orders
@@ -92,6 +126,10 @@ class Order:
 
         self.quantity -= quantity
 
+        print(
+            f"Order {self} filled at {filled_price} ({quantity} of {self.quantity} shares)"
+        )
+
         return copied_order
 
     def fill_fully(self, filled_price: Price) -> "Order":
@@ -101,6 +139,10 @@ class Order:
 
         self.filled_at = time.time()
         self.filled_price = filled_price
+
+        print(
+            f"Order {self} filled at {filled_price} ({self.quantity} of {self.quantity} shares)"
+        )
 
         return self
 
@@ -113,7 +155,7 @@ class LimitOrder(Order):
 
     limit_price: Price
 
-    def __post_init__(self):
+    def __post_init__(self) -> "LimitOrder":
         """
         Post init method
         """
@@ -121,12 +163,61 @@ class LimitOrder(Order):
         if self.limit_price <= 0:
             raise InvalidOrderException(self, "Limit price must be positive")
 
+        super().__post_init__()
+
+        return self
+
+    def __repr__(self) -> str:
+        """
+        Representation of the order
+        """
+
+        return (
+            "{"
+            + f"LimitOrder(ticker={self.ticker}, direction={self.direction}, quantity={self.quantity}, limit_price={self.limit_price}, order_id={self.order_id}, submitted_at={self.submitted_at}, filled_at={self.filled_at}, filled_price={self.filled_price})"
+            + "}"
+        )
+
+    def __str__(self) -> str:
+        """
+        Representation of the order
+        """
+
+        return self.__repr__()
+
 
 @dataclass
 class MarketOrder(Order):
     """
     An order executed at the current best market price
     """
+
+    def __post_init__(self) -> "MarketOrder":
+        """
+        Post init method
+        """
+
+        super().__post_init__()
+
+        return self
+
+    def __repr__(self) -> str:
+        """
+        Representation of the order
+        """
+
+        return (
+            "{"
+            + f"MarketOrder(ticker={self.ticker}, direction={self.direction}, quantity={self.quantity}, order_id={self.order_id}, submitted_at={self.submitted_at}, filled_at={self.filled_at}, filled_price={self.filled_price})"
+            + "}"
+        )
+
+    def __str__(self) -> str:
+        """
+        Representation of the order
+        """
+
+        return self.__repr__()
 
 
 @dataclass
@@ -143,6 +234,20 @@ class PriceLevel:
         """
 
         self.orders: dict[uuid.UUID, LimitOrder] = {}
+
+    def __repr__(self):
+        """
+        Representation of the price level
+        """
+
+        return "{" + f"[PriceLevel(price={self.price}, orders={self.orders})" + "}"
+
+    def __str__(self):
+        """
+        Representation of the price level
+        """
+
+        return self.__repr__()
 
 
 @dataclass
@@ -161,11 +266,9 @@ class OrderBook:
         if not self.ticker:
             raise ValueError("Ticker must be non-empty")
 
-        self.active_orders: dict[
-            OrderDirection, PriorityQueue[Tuple[Price, PriceLevel]]
-        ] = {
-            OrderDirection.BID: PriorityQueue(),
-            OrderDirection.ASK: PriorityQueue(),
+        self.active_orders: dict[OrderDirection, CustomPQ[Tuple[Price, PriceLevel]]] = {
+            OrderDirection.BID: CustomPQ(),
+            OrderDirection.ASK: CustomPQ(),
         }
 
         self.executed_orders: dict[OrderDirection, list[Order]] = {
@@ -182,6 +285,24 @@ class OrderBook:
             OrderDirection.BID: {},
             OrderDirection.ASK: {},
         }
+
+    def __repr__(self):
+        """
+        Representation of the order book
+        """
+
+        return (
+            "{"
+            + f"OrderBook(ticker={self.ticker}, active_orders={self.active_orders}, executed_orders={self.executed_orders}, invalid_orders={self.invalid_orders}, price_levels={self.price_levels})"
+            + "}"
+        )
+
+    def __str__(self):
+        """
+        Representation of the order book
+        """
+
+        return self.__repr__()
 
     def fill_quantities(self, a: Order, b: Order, price: Price):
         """
@@ -228,13 +349,6 @@ class OrderBook:
         direction = order.direction
 
         active_orders = self.active_orders[direction]
-        invalid_orders = self.invalid_orders[direction]
-
-        if not active_orders:
-            invalid_orders.append(order)
-            raise InvalidOrderException(
-                order, "Failed to submit market order: no more asks available"
-            )
 
         while not active_orders.empty():
             if order.filled_at:
@@ -270,8 +384,15 @@ class OrderBook:
 
         if not market_order.filled_at:
             invalid_orders.append(market_order)
+
+            if direction == OrderDirection.BID:
+                raise InvalidOrderException(
+                    market_order, "Failed to fill market order: no more asks available"
+                )
+
             raise InvalidOrderException(
-                market_order, "Failed to fill market order: no more asks available"
+                market_order,
+                "Failed to fill market order: no more bids available",
             )
 
     def submit_limit_order(self, limit_order: LimitOrder):
@@ -293,13 +414,13 @@ class OrderBook:
             if limit_price in price_levels:
                 price_level = price_levels[limit_price]
             else:
-                new_price_level = PriceLevel(limit_price)
-                price_levels[limit_price] = new_price_level
+                price_level = PriceLevel(limit_price)
+                price_levels[limit_price] = price_level
 
                 if direction == OrderDirection.BID:
-                    active_orders.put((-limit_price, new_price_level))
+                    active_orders.put((-limit_price, price_level))
                 else:
-                    active_orders.put((limit_price, new_price_level))
+                    active_orders.put((limit_price, price_level))
 
             price_level.orders[limit_order.order_id] = limit_order
 
@@ -316,6 +437,20 @@ class Exchange:
         """
 
         self.order_books: dict[str, OrderBook] = {}
+
+    def __repr__(self):
+        """
+        Representation of the exchange
+        """
+
+        return "{" + f"Exchange(order_books={self.order_books})" + "}"
+
+    def __str__(self):
+        """
+        Representation of the exchange
+        """
+
+        return self.__repr__()
 
     def get_or_create_order_book(self, ticker: str) -> OrderBook:
         """
@@ -352,7 +487,24 @@ def main():
     """
 
     exchange = Exchange()
-    exchange.submit_market_order(MarketOrder("AAPL", OrderDirection.BID, 100))
+
+    print("Submitting limit order")
+
+    exchange.submit_limit_order(
+        LimitOrder(
+            ticker="AAPL", direction=OrderDirection.BID, quantity=100, limit_price=100
+        )
+    )
+
+    print(exchange.order_books["AAPL"].active_orders)
+
+    print("Submitting market order")
+
+    exchange.submit_market_order(
+        LimitOrder(
+            ticker="AAPL", direction=OrderDirection.ASK, quantity=50, limit_price=100
+        )
+    )
 
 
 if __name__ == "__main__":
