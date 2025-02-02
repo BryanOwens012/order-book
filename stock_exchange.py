@@ -4,8 +4,9 @@ Stock exchange
 
 from dataclasses import dataclass
 from typing import Optional
+import uuid
 
-from order import LimitOrder, MarketOrder, OrderDirection
+from order import LimitOrder, MarketOrder
 from order_book import OrderBook
 
 
@@ -64,7 +65,7 @@ class StockExchange:
 
         return self.get_or_create_order_book(ticker).submit_limit_order(limit_order)
 
-    def cancel_limit_order(self, ticker: str, order_id: str) -> LimitOrder:
+    def cancel_limit_order(self, ticker: str, order_id: uuid.UUID) -> LimitOrder:
         """
         Cancel a limit order
         """
@@ -74,7 +75,7 @@ class StockExchange:
     def update_limit_order(
         self,
         ticker: str,
-        order_id: str,
+        order_id: uuid.UUID,
         new_quantity: Optional[int],
         new_price: Optional[float],
     ) -> LimitOrder:

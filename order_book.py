@@ -29,7 +29,7 @@ class OrderBook:
         if not self.ticker:
             raise ValueError("Ticker must be non-empty")
 
-        self.orders_by_id: dict[str, LimitOrder] = {}
+        self.orders_by_id: dict[uuid.UUID, LimitOrder] = {}
 
         self.active_orders: dict[OrderDirection, CustomPQ[Tuple[Price, PriceLevel]]] = {
             OrderDirection.BID: CustomPQ(),
@@ -261,7 +261,7 @@ class OrderBook:
 
         return limit_order
 
-    def cancel_limit_order(self, order_id: str) -> LimitOrder:
+    def cancel_limit_order(self, order_id: uuid.UUID) -> LimitOrder:
         """
         Cancel a limit order
         """
@@ -285,7 +285,7 @@ class OrderBook:
 
     def update_limit_order(
         self,
-        order_id: str,
+        order_id: uuid.UUID,
         new_quantity: Optional[int],
         new_price: Optional[float],
     ) -> LimitOrder:
