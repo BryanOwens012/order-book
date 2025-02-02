@@ -64,22 +64,16 @@ class StockExchange:
 
         return self.get_or_create_order_book(ticker).submit_limit_order(limit_order)
 
-    def cancel_limit_order(
-        self, ticker: str, direction: OrderDirection, price: float, order_id: str
-    ) -> LimitOrder:
+    def cancel_limit_order(self, ticker: str, order_id: str) -> LimitOrder:
         """
         Cancel a limit order
         """
 
-        return self.get_or_create_order_book(ticker).cancel_limit_order(
-            direction, price, order_id
-        )
+        return self.get_or_create_order_book(ticker).cancel_limit_order(order_id)
 
     def update_limit_order(
         self,
         ticker: str,
-        direction: OrderDirection,
-        price: float,
         order_id: str,
         new_quantity: Optional[int],
         new_price: Optional[float],
@@ -89,7 +83,7 @@ class StockExchange:
         """
 
         return self.get_or_create_order_book(ticker).update_limit_order(
-            direction, price, order_id, new_quantity, new_price
+            order_id, new_quantity, new_price
         )
 
     def get_active_orders_str(self, ticker: str) -> str:

@@ -29,6 +29,8 @@ class OrderBook:
         if not self.ticker:
             raise ValueError("Ticker must be non-empty")
 
+        self.orders_by_id: dict[str, LimitOrder] = {}
+
         self.active_orders: dict[OrderDirection, CustomPQ[Tuple[Price, PriceLevel]]] = {
             OrderDirection.BID: CustomPQ(),
             OrderDirection.ASK: CustomPQ(),
@@ -188,6 +190,7 @@ class OrderBook:
             # Remove filled orders
             for order_id in orders_to_remove:
                 del matched_price_level.orders[order_id]
+                del self.orders_by_id[order_id]
 
             # If price level still has orders, put it back
             if matched_price_level.orders:
@@ -205,6 +208,8 @@ class OrderBook:
         """
         Submit and execute (fill, if possible) a market order
         """
+
+        self.orders_by_id[market_order.order_id] = market_order
 
         direction = market_order.direction
         invalid_orders = self.invalid_orders[direction]
@@ -231,6 +236,8 @@ class OrderBook:
         Submit a limit order
         """
 
+        self.orders_by_id[limit_order.order_id] = limit_order
+
         direction = limit_order.direction
         limit_price = limit_order.limit_price
 
@@ -254,39 +261,30 @@ class OrderBook:
 
         return limit_order
 
-    def cancel_limit_order(
-        self, direction: OrderDirection, price: float, order_id: str
-    ) -> LimitOrder:
+    def cancel_limit_order(self, order_id: str) -> LimitOrder:
         """
         Cancel a limit order
         """
 
-        if price not in self.price_levels[direction]:
+        if order_id not in self.orders_by_id:
             raise InvalidOrderException(
-                None, f"No {direction.name} orders at price ${price}"
+                None, f"Could not find an order with order ID {order_id}"
             )
 
-        price_level = self.price_levels[direction][price]
+        order: LimitOrder = self.orders_by_id[order_id]
+        del self.orders_by_id[order_id]
+        order.canceled_at = time.time()
 
-        if order_id not in price_level.orders:
-            raise InvalidOrderException(
-                None,
-                f"No {direction.name} orders at price ${price} with order ID {order_id}",
-            )
-
-        limit_order = price_level.orders[order_id]
-        limit_order.canceled_at = time.time()
+        price_level = self.price_levels[order.direction][order.limit_price]
         del price_level.orders[order_id]
 
         if not price_level.orders:
-            del self.price_levels[direction][price]
+            del self.price_levels[order.direction][order.limit_price]
 
-        return limit_order
+        return order
 
     def update_limit_order(
         self,
-        direction: OrderDirection,
-        price: float,
         order_id: str,
         new_quantity: Optional[int],
         new_price: Optional[float],
@@ -296,17 +294,13 @@ class OrderBook:
         Basically equivalent to canceling and resubmitting
         """
 
-        limit_order = self.cancel_limit_order(direction, price, order_id)
+        order = self.cancel_limit_order(order_id)
 
-        new_limit_order = deepcopy(limit_order)
-        new_limit_order.quantity = (
-            new_quantity if new_quantity else limit_order.quantity
-        )
-        new_limit_order.limit_price = (
-            new_price if new_price else limit_order.limit_price
-        )
-        new_limit_order.canceled_at = None
-        new_limit_order.submitted_at = time.time()
-        new_limit_order.order_id = uuid.uuid4()
+        new_order = deepcopy(order)
+        new_order.quantity = new_quantity if new_quantity else order.quantity
+        new_order.limit_price = new_price if new_price else order.limit_price
+        new_order.canceled_at = None
+        new_order.submitted_at = time.time()
+        new_order.order_id = uuid.uuid4()
 
-        return self.submit_limit_order(new_limit_order)
+        return self.submit_limit_order(new_order)
