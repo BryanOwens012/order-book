@@ -82,6 +82,10 @@ class OrderBook:
             pq = self.active_orders[direction]
             copied_pq: CustomPQ[Tuple[Price, PriceLevel]] = CustomPQ()
 
+            if pq.empty():
+                result += "(No active orders)\n\n"
+                continue
+
             while not pq.empty():
                 priority, price_level = pq.get()
                 copied_pq.put((priority, price_level))

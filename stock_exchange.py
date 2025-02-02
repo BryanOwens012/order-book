@@ -91,3 +91,10 @@ class StockExchange:
         return self.get_or_create_order_book(ticker).update_limit_order(
             direction, price, order_id, new_quantity, new_price
         )
+
+    def get_active_orders_str(self, ticker: str) -> str:
+        """
+        Get a string representation of the active orders for a ticker
+        """
+
+        return self.get_or_create_order_book(ticker).get_active_orders_str()
