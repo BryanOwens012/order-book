@@ -106,9 +106,9 @@ class OrderBook:
 
         return result
 
-    def fill_quantities(self, a: Order, b: Order, price: Dollars):
+    def fill(self, a: Order, b: Order, price: Dollars):
         """
-        Fill quantities
+        Fill orders against each other
         """
 
         if not (a.ticker == self.ticker and b.ticker == self.ticker):
@@ -184,7 +184,7 @@ class OrderBook:
                 while not matched_order.filled_at:
                     if order.filled_at:
                         break
-                    self.fill_quantities(matched_order, order, matched_price)
+                    self.fill(matched_order, order, matched_price)
 
                 if matched_order.filled_at:
                     orders_to_remove.append(matched_order.order_id)
