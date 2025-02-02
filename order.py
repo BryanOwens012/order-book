@@ -98,7 +98,7 @@ class Order:
         copied_order.filled_price = filled_price
 
         print(
-            f"\tFilled at ${filled_price} ({quantity} of {self.quantity} shares): {self}"
+            f"\t--> Filled at ${filled_price} ({quantity} of {self.quantity} shares): {self}"
         )
 
         self.quantity -= quantity
@@ -114,7 +114,7 @@ class Order:
         self.filled_price = filled_price
 
         print(
-            f"\tFilled at ${filled_price} ({self.quantity} of {self.quantity} shares): {self}"
+            f"\t--> Filled at ${filled_price} ({self.quantity} of {self.quantity} shares): {self}"
         )
 
         return self

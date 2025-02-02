@@ -37,8 +37,6 @@ def test_0():
     print(f"\nSubmitting limit order: {limit_order_2}")
     exchange.submit_limit_order(limit_order_2)
 
-    print(f"Result: {exchange.order_books['AAPL'].price_levels}")
-
     limit_order_3 = LimitOrder(
         ticker="AAPL", direction=OrderDirection.BID, quantity=40, limit_price=160
     )
