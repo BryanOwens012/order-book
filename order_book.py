@@ -170,7 +170,7 @@ class OrderBook:
                     and matched_price < order.limit_price
                 ):
                     unmatched.append((priority, matched_price_level))
-                    continue
+                    break
 
             # Process orders at this price level
             orders_to_remove = []
