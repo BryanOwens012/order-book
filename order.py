@@ -8,7 +8,7 @@ from enum import IntEnum
 import time
 import uuid
 
-from util import Price, InvalidOrderException, Timestamp, make_human_readable
+from util import Dollars, InvalidOrderException, Timestamp, make_human_readable
 
 
 class OrderDirection(IntEnum):
@@ -54,7 +54,7 @@ class Order:
         self.order_id: uuid.UUID = uuid.uuid4()
         self.submitted_at: Timestamp = time.time()
         self.filled_at: Timestamp = None
-        self.filled_price: Price = None
+        self.filled_price: Dollars = None
 
         self.canceled_at: Timestamp = None
 
@@ -78,7 +78,7 @@ class Order:
 
         return self.__repr__()
 
-    def fill_partially(self, quantity: int, filled_price: Price) -> "Order":
+    def fill_partially(self, quantity: int, filled_price: Dollars) -> "Order":
         """
         Split this order into two orders
         """
@@ -105,7 +105,7 @@ class Order:
 
         return copied_order
 
-    def fill_fully(self, filled_price: Price) -> "Order":
+    def fill_fully(self, filled_price: Dollars) -> "Order":
         """
         Fill this order completely
         """
@@ -126,7 +126,7 @@ class LimitOrder(Order):
     An submitted order executed only when a certain price is reached
     """
 
-    limit_price: Price
+    limit_price: Dollars
 
     def __post_init__(self) -> "LimitOrder":
         """

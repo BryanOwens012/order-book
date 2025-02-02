@@ -6,13 +6,13 @@ from queue import PriorityQueue
 from typing import Any
 from datetime import datetime
 
-Price = float
+Dollars = float
 Timestamp = float
 
 
 class CustomPQ(PriorityQueue):
     """
-    Custom priority queue
+    Wrapper around PriorityQueue, to allow for custom __repr__ and __str__ methods
     """
 
     def __init__(self, *args, **kwargs):

@@ -10,7 +10,7 @@ import uuid
 
 from order import LimitOrder, MarketOrder, Order, OrderDirection
 from price_level import PriceLevel
-from util import Price, CustomPQ, InvalidOrderException
+from util import Dollars, CustomPQ, InvalidOrderException
 
 
 @dataclass
@@ -31,7 +31,9 @@ class OrderBook:
 
         self.orders_by_id: dict[uuid.UUID, LimitOrder] = {}
 
-        self.active_orders: dict[OrderDirection, CustomPQ[Tuple[Price, PriceLevel]]] = {
+        self.active_orders: dict[
+            OrderDirection, CustomPQ[Tuple[Dollars, PriceLevel]]
+        ] = {
             OrderDirection.BID: CustomPQ(),
             OrderDirection.ASK: CustomPQ(),
         }
@@ -46,7 +48,7 @@ class OrderBook:
             OrderDirection.ASK: [],
         }
 
-        self.price_levels: dict[OrderDirection, dict[Price, PriceLevel]] = {
+        self.price_levels: dict[OrderDirection, dict[Dollars, PriceLevel]] = {
             OrderDirection.BID: {},
             OrderDirection.ASK: {},
         }
@@ -82,7 +84,7 @@ class OrderBook:
             result += f"{direction.name}:\n"
 
             pq = self.active_orders[direction]
-            copied_pq: CustomPQ[Tuple[Price, PriceLevel]] = CustomPQ()
+            copied_pq: CustomPQ[Tuple[Dollars, PriceLevel]] = CustomPQ()
 
             if pq.empty():
                 result += "(No active orders)\n\n"
@@ -104,7 +106,7 @@ class OrderBook:
 
         return result
 
-    def fill_quantities(self, a: Order, b: Order, price: Price):
+    def fill_quantities(self, a: Order, b: Order, price: Dollars):
         """
         Fill quantities
         """

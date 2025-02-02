@@ -5,7 +5,7 @@ Price level
 import uuid
 from dataclasses import dataclass
 
-from util import Price
+from util import Dollars
 from order import LimitOrder
 
 
@@ -15,7 +15,7 @@ class PriceLevel:
     A price level in the order book
     """
 
-    price: Price
+    price: Dollars
 
     def __post_init__(self):
         """
